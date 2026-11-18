@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build a Tiny Thief PS Vita VPK locally from your own Tiny Thief 1.2.1 XAPK. No uploads.">
+<title>Tiny Thief VPK Builder</title>
+<style>
+  :root { --bg: #f4f1ea; --panel: #ffffff; --ink: #2b2620; --muted: #6f665b; --line: #ddd5c8; --accent: #e8620c;
+          --ok: #2f7d32; --bad: #b3261e; --drop: #fbf7f0; --shot: #e9e3d8; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1d1a17; --panel: #27231f; --ink: #efe9e0; --muted: #b0a698; --line: #3d3731;
+      --accent: #ff8a3d; --ok: #7cc47f; --bad: #ff8a80; --drop: #2e2925; --shot: #1a1714; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; background: var(--drop); padding: 28px 16px; text-align: center;
+          cursor: pointer; transition: border-color .15s; }
+  #drop.over, .pic.over .shot { border-color: var(--accent); }
+  #drop strong { display: block; font-size: 18px; margin-bottom: 4px; }
+  #files { margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
+  .badge { display: inline-block; vertical-align: middle; margin-left: 8px; background: var(--accent); color: #fff; font-size: 12px;
+           font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; }
+  .only { margin: 4px 0 12px; font-size: 14px; }
+  /* a file that is not the XAPK: said right under the drop zone, in a box that cannot be missed */
+  #problem { display: none; margin-top: 12px; border: 2px solid var(--bad); border-radius: 10px; padding: 12px 14px;
+             background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+  #problem strong { display: block; color: var(--bad); font-size: 17px; margin-bottom: 2px; }
+  #problem p { margin: 0; font-size: 14px; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 16px; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.link { background: none; color: var(--accent); padding: 0; font-size: 14px; border-radius: 0; text-decoration: underline; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  progress { flex: 1; min-width: 160px; height: 10px; }
+  #log { font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; margin: 0; max-height: 260px; overflow: auto; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  #get { display: none; font-weight: 600; color: var(--accent); }
+  ol { margin: 8px 0 0; padding-left: 20px; }
+  .note { color: var(--muted); font-size: 14px; }
+  #pictures { display: none; }
+  /* thumbnails: the five pictures in one row on a wide screen (two or three on a narrow one); View shows one full size */
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+  .pic { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .shot { display: flex; align-items: center; justify-content: center; background: var(--shot); border: 2px dashed transparent;
+          border-radius: 10px; padding: 6px; height: 120px; cursor: pointer; position: relative; overflow: hidden; }
+  .shot:hover, .shot:focus-visible { border-color: var(--line); outline: none; }
+  .shot img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; object-fit: contain; }
+  .shot img.bubble { border-radius: 50%; width: 96px; height: 96px; }
+  .shot .hint { position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px;
+                padding: 1px 7px; border-radius: 6px; opacity: 0; transition: opacity .15s; }
+  .shot:hover .hint, .shot:focus-visible .hint { opacity: 1; }
+  .cap { font-size: 13px; line-height: 1.35; }
+  .cap span { color: var(--muted); display: block; }
+  .src { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; }
+  .src .mine { color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+  button.link.small { font-size: 12px; }
+  #viewer { border: 0; border-radius: 12px; padding: 12px; background: var(--panel); color: var(--ink); max-width: 96vw; }
+  #viewer::backdrop { background: rgba(0,0,0,.6); }
+  #viewer img { display: block; max-width: min(960px, 92vw); max-height: 80vh; width: auto; height: auto; margin: 0 auto; }
+  #viewer img.bubble { border-radius: 50%; }
+  #viewer .row { margin-top: 10px; justify-content: space-between; }
+</style>
+</head>
+<body>
+<main>
+  <noscript><p>This builder needs JavaScript enabled to process files on your computer.</p></noscript>
+  <h1>Tiny Thief VPK Builder</h1>
+  <p class="sub">The Tiny Thief 1.2.1 XAPK for Android, made into a PS Vita VPK on this computer. Nothing is uploaded.</p>
+
+  <div class="panel">
+    <h2>1. Your Tiny Thief XAPK <span class="badge">XAPK ONLY</span></h2>
+    <p class="only">This builder takes one file: the Tiny Thief <strong>XAPK</strong> (a <strong>.xapk</strong> file), which holds the
+      APK and the game's data file (the OBB) together. <strong>An APK will not work</strong>, nor an OBB on its own.</p>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose your Tiny Thief XAPK">
+      <strong>Drop your Tiny Thief XAPK here</strong>
+      <span class="note" id="needs">or click to choose the .xapk file</span>
+      <input id="pick" type="file" accept=".xapk" hidden>
+    </div>
+    <div id="problem" role="alert"><strong></strong><p></p></div>
+    <ul id="files"></ul>
+  </div>
+
+  <div class="panel" id="pictures">
+    <h2>2. LiveArea pictures</h2>
+    <p class="note">Made from the pictures inside the APK, shown as they will look on the Vita. Click a picture (or drop an image
+      on it) to use your own instead: it is scaled to fill the space and cropped from the centre.</p>
+    <div id="grid"></div>
+    <input id="picPick" type="file" accept="image/*" hidden>
+  </div>
+
+  <dialog id="viewer">
+    <img alt="">
+    <div class="row"><span id="viewerCap" class="note"></span><button id="viewerClose">Close</button></div>
+  </dialog>
+
+  <div class="panel">
+    <h2>3. The VPK</h2>
+    <div class="row" style="margin-top:8px">
+      <button id="go" disabled>Build the VPK</button>
+      <progress id="bar" max="1" value="0" aria-label="Builder progress"></progress>
+      <a id="get" download="TinyThief.vpk">Save TinyThief.vpk</a>
+    </div>
+  </div>
+
+  <div class="panel"><pre id="log"></pre></div>
+
+  <div class="panel">
+    <strong>On the Vita</strong>
+    <ol>
+      <li>Install <em>TinyThief.vpk</em> with VitaShell. Nothing else to copy.</li>
+      <li>Start Tiny Thief. The first start checks the game and unpacks its libraries (a few seconds); later starts skip that.</li>
+    </ol>
+    <p class="note">An existing save in ux0:data/TinyThiefBYO/ is kept. Back up your saves before starting fresh.
+      The console needs kubridge and ur0:data/libshacccg.suprx.</p>
+  </div>
+</main>
+<script src="builder.js"></script>
+<script>
+(async function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let xapk = null, url = null;
+  function line(text, cls) {
+    const s = document.createElement('span');
+    if (cls) s.className = cls;
+    s.textContent = text + '\n';
+    $('log').appendChild(s);
+    $('log').scrollTop = $('log').scrollHeight;
+    return s;
+  }
+  const served = location.protocol === 'http:' || location.protocol === 'https:';
+  try {
+    if (!globalThis.crypto || !crypto.subtle) throw new Error('WebCrypto is unavailable');
+    new DecompressionStream('deflate-raw');
+    new CompressionStream('deflate');
+  } catch (err) {
+    line('This browser cannot run the builder. Use a current desktop browser over HTTPS or localhost.', 'bad');
+    $('needs').textContent = 'a supported browser is required';
+    return;
+  }
+
+  /* Offline after the first visit: a service worker keeps the page, the builder and the payload (sw.js). Browsers allow
+   * one only on https:// or localhost; opened as a local file the page needs none. */
+  if (served && 'serviceWorker' in navigator && window.isSecureContext)
+    navigator.serviceWorker.register('sw.js').catch(err => line('Offline copy not available: ' + err.message));
+
+  /* The payload: served over http(s) it is fetched with a progress bar and checked against version.json's SHA-256 (the
+   * service worker keeps it under that hash); as a local file, where browsers refuse fetch(), the same data comes as a
+   * <script> (payload/payload.js). */
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('cannot load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  async function fetchPayload() {
+    const versionResponse = await fetch('payload/version.json', {cache: 'no-cache'});
+    if (!versionResponse.ok) throw new Error('version.json: HTTP ' + versionResponse.status);
+    const v = await versionResponse.json();
+    if (!v || typeof v.build !== 'string' || !/^[0-9a-f]{64}$/.test(v.sha256) ||
+        !Number.isSafeInteger(v.bytes) || v.bytes <= 0) throw new Error('invalid payload version metadata');
+    const res = await fetch('payload/payload.json?v=' + v.sha256);
+    if (!res.ok) throw new Error('payload.json: HTTP ' + res.status);
+    const status = line('Loading the builder\'s data (' + (v.bytes / 1048576).toFixed(1) + ' MB)...');
+    const reader = res.body.getReader(), chunks = [];
+    let got = 0;
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      got += value.length;
+      $('bar').value = Math.min(1, got / v.bytes);
+      status.textContent = 'Loading the builder\'s data... ' + Math.min(100, Math.round(got * 100 / v.bytes)) + '%\n';
+    }
+    const body = new Uint8Array(got);
+    let o = 0;
+    for (const c of chunks) { body.set(c, o); o += c.length; }
+    if (got !== v.bytes || await TTBuilder.sha256hex(body) !== v.sha256)
+      throw new Error('the builder\'s data is damaged: reload the page');
+    status.textContent = 'Loaded the builder\'s data (' + (got / 1048576).toFixed(1) + ' MB, checked).\n';
+    $('bar').value = 0;
+    const payload = JSON.parse(new TextDecoder().decode(body));
+    if (payload.build !== v.build) throw new Error('payload build does not match version.json');
+    return payload;
+  }
+  let P = null;
+  try {
+    if (served) P = await fetchPayload();
+    else { await loadScript('payload/payload.js'); P = globalThis.TT_PAYLOAD; }
+  } catch (err) {
+    line('Cannot load the local payload: ' + err.message, 'bad');
+  }
+  if (!P) {
+    line('Builder data is missing or damaged. Restore the payload folder supplied with this copy, then reload. See README.md.', 'bad');
+    $('needs').textContent = 'the builder is not set up yet (see below)';
+    return;
+  }
+  line('Ready. Program ' + P.build + '. Drop the Tiny Thief XAPK.');
+
+  /* ---- step 1: the XAPK, checked at once; the pictures made from its APK (TTBuilder.prepare) ---- */
+  let prep = null, apkPngs = {}, mine = {}, previews = {}, run = 0, pictureRuns = {};
+  /* A file that is not the XAPK (an APK, the OBB, several files, anything else): the builder's refusal shown in the box
+   * under the drop zone, with its short title, and in the log. */
+  function problem(title, text) {
+    const box = $('problem');
+    if (!title) { box.style.display = 'none'; return; }
+    box.querySelector('strong').textContent = title;
+    box.querySelector('p').textContent = text;
+    box.style.display = 'block';
+  }
+  function showFile(f) {
+    $('files').innerHTML = '';
+    if (!f) return;
+    const li = document.createElement('li');
+    li.textContent = f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)';
+    $('files').appendChild(li);
+  }
+  function stale() {   /* a built VPK no longer matches what is shown */
+    $('get').style.display = 'none';
+    if (url) { URL.revokeObjectURL(url); url = null; }
+  }
+  async function check() {
+    const me = ++run;
+    prep = null;
+    stale();
+    $('go').disabled = true;
+    $('pictures').style.display = 'none';
+    $('bar').value = 0;
+    try {
+      const p = await TTBuilder.prepare(new Uint8Array(await xapk.arrayBuffer()), P, {
+        name: xapk.name,
+        log: t => { if (me === run) line(t); },
+        progress: (what, f) => { if (me === run) $('bar').value = f; }
+      });
+      if (me !== run) return;   /* another file was dropped meanwhile */
+      prep = p;
+      apkPngs = Object.assign({}, p.pngs);
+      mine = {};
+      showPictures();
+      $('bar').value = 1;
+      $('go').disabled = false;
+      line('Checked. Review the pictures, then build the VPK.', 'ok');
+    } catch (err) {
+      if (me !== run) return;
+      const text = String(err && err.message || err);
+      problem(err && err.title || 'This file cannot be used', text);
+      line((err && err.title ? err.title + '. ' : '') + text, 'bad');
+    }
+  }
+  /* One file, the XAPK. What it is comes from its content (TTBuilder.identify, in prepare()), not its name, so an APK
+   * renamed .xapk is still told it is an APK. */
+  function take(list) {
+    const files = Array.from(list || []);
+    if (!files.length) return;
+    xapk = null;
+    run++;   /* drops any check still running for an earlier file */
+    prep = null;
+    stale();
+    $('go').disabled = true;
+    $('pictures').style.display = 'none';
+    problem(null);
+    if (files.length > 1) {
+      showFile(null);
+      const e = TTBuilder.wrongFile('many');
+      problem(e.title, e.message + ' You dropped ' + files.length + ' files.');
+      line(e.title + '. ' + e.message, 'bad');
+      return;
+    }
+    xapk = files[0];
+    showFile(xapk);
+    check();
+  }
+  const drop = $('drop');
+  drop.addEventListener('click', () => $('pick').click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('pick').click(); } });
+  $('pick').addEventListener('change', e => { take(e.target.files); e.target.value = ''; });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); take(e.dataTransfer.files); });
+
+  /* ---- step 2: the pictures, each replaceable (click, or drop an image) and resettable ---- */
+  function setPreview(id) {
+    if (previews[id]) URL.revokeObjectURL(previews[id]);
+    previews[id] = URL.createObjectURL(new Blob([prep.pngs[id]], {type: 'image/png'}));
+    const card = document.querySelector('.pic[data-id="' + id + '"]');
+    card.querySelector('img').src = previews[id];
+    const src = card.querySelector('.src');
+    src.innerHTML = '';
+    const what = document.createElement('span');
+    const view = document.createElement('button');
+    view.className = 'link small';
+    view.textContent = 'View';
+    view.addEventListener('click', () => openViewer(id));
+    if (mine[id]) {
+      what.className = 'mine';
+      what.textContent = 'Yours: ' + mine[id];
+      const reset = document.createElement('button');
+      reset.className = 'link small';
+      reset.textContent = 'Use the APK\'s';
+      reset.addEventListener('click', () => { prep.pngs[id] = apkPngs[id]; delete mine[id]; stale(); setPreview(id); });
+      src.append(what, view, reset);
+    } else {
+      what.textContent = 'From the APK';
+      src.append(what, view);
+    }
+  }
+  /* one picture at full size (up to the window), over the page; Close, Esc or a click outside closes it */
+  function openViewer(id) {
+    const s = TTBuilder.slotById(id), v = $('viewer'), img = v.querySelector('img');
+    img.src = previews[id];
+    img.alt = s.label;
+    img.className = id === 'icon0' ? 'bubble' : '';
+    $('viewerCap').textContent = s.label + ', ' + s.w + ' x ' + s.h + (mine[id] ? ' (your picture)' : ' (from the APK)');
+    if (v.showModal) v.showModal(); else v.setAttribute('open', '');
+  }
+  $('viewerClose').addEventListener('click', () => $('viewer').close());
+  $('viewer').addEventListener('click', e => { if (e.target === $('viewer')) $('viewer').close(); });
+  function showPictures() {
+    const grid = $('grid');
+    grid.innerHTML = '';
+    for (const s of TTBuilder.SLOTS) {
+      const card = document.createElement('div');
+      card.className = 'pic';
+      card.dataset.id = s.id;
+      const shot = document.createElement('button');
+      shot.className = 'shot';
+      shot.title = 'Click to use your own picture';
+      const img = document.createElement('img');
+      img.alt = s.label;
+      if (s.id === 'icon0') img.className = 'bubble';   /* the home screen shows it as a round bubble */
+      const hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.textContent = 'Change';
+      shot.append(img, hint);
+      shot.addEventListener('click', () => { picking = s.id; $('picPick').click(); });
+      card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('over'));
+      card.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation(); card.classList.remove('over');
+        if (e.dataTransfer.files[0]) replace(s.id, e.dataTransfer.files[0]);
+      });
+      const cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.innerHTML = '<strong></strong> <span></span>';
+      cap.querySelector('strong').textContent = s.label;
+      cap.querySelector('span').textContent = s.w + ' x ' + s.h;
+      cap.title = s.where;
+      const src = document.createElement('div');
+      src.className = 'src';
+      card.append(shot, cap, src);
+      grid.append(card);
+      setPreview(s.id);
+    }
+    $('pictures').style.display = 'block';
+  }
+  let picking = null;
+  $('picPick').addEventListener('change', e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (f && picking) replace(picking, f);
+  });
+  /* a picture file of any kind the browser reads, shrunk by the browser first when far larger than the slot, then
+   * filled and cropped and encoded the slot's way by the builder (what the Vita gets is what is shown) */
+  async function decodeImage(file, slot) {
+    let bmp;
+    try { bmp = await createImageBitmap(file); } catch (e) { throw new Error(file.name + ' is not a picture this browser can read.'); }
+    const s = Math.max(slot.w / bmp.width, slot.h / bmp.height), k = s < 0.5 ? s * 2 : 1;
+    const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(bmp, 0, 0, w, h);
+    if (bmp.close) bmp.close();
+    return {w, h, px: new Uint8Array(g.getImageData(0, 0, w, h).data.buffer)};
+  }
+  async function replace(id, file) {
+    if (!prep) return;
+    const target = prep, operation = (pictureRuns[id] || 0) + 1;
+    pictureRuns[id] = operation;
+    const slot = TTBuilder.slotById(id);
+    try {
+      const img = TTBuilder.fitToSlot(await decodeImage(file, slot), slot);
+      const png = await TTBuilder.encodeSlot(slot, img);
+      if (prep !== target || pictureRuns[id] !== operation) return;
+      prep.pngs[id] = png;
+      mine[id] = file.name;
+      stale();
+      setPreview(id);
+      line(slot.label + ': ' + file.name + ' (' + slot.w + ' x ' + slot.h + ').');
+    } catch (err) {
+      line(String(err && err.message || err), 'bad');
+    }
+  }
+
+  /* ---- step 3: the VPK with the pictures as shown (TTBuilder.assemble) ---- */
+  $('go').addEventListener('click', async () => {
+    if (!prep) return;
+    const me = run, target = prep;
+    $('go').disabled = true;
+    stale();
+    try {
+      const out = await TTBuilder.assemble(prep, P, {log: t => line(t)});
+      if (me !== run || target !== prep) return;
+      url = URL.createObjectURL(new Blob(out.parts, {type: 'application/octet-stream'}));
+      $('get').href = url;
+      $('get').style.display = 'inline';
+      $('bar').value = 1;
+      const own = Object.keys(mine).length;
+      line('Saved as ' + out.name + ' when you click "Save TinyThief.vpk"' + (own ? ' (' + own + ' of your own pictures).' : '.'), 'ok');
+    } catch (err) {
+      line(String(err && err.message || err), 'bad');
+    }
+    $('go').disabled = !prep;
+  });
+})();
+</script>
+</body>
+</html>
