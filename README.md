@@ -39,6 +39,14 @@ must supply your own **Tiny Thief 1.2.1 XAPK** to create the playable VPK.
    in **VitaShell**, and install it. Then launch Tiny Thief from its home-screen
    bubble.
 
+7. **Let the first start finish.** The first start checks the game, unpacks its
+   libraries and then shows **"Preparing shaders… (first start only)"** while
+   the Vita compiles the game's 19 graphics programs (about 11 seconds in all).
+   They are saved on the Vita, so later starts skip both steps. If that first
+   start is interrupted, the next one simply carries on. No shader or compiled
+   program is stored in this repository or in the VPK: they are made on your
+   Vita from your own game files.
+
 ## Your files stay on your computer
 
 Choosing or dropping your XAPK on the website does **not** upload it to a server.

@@ -16,7 +16,9 @@
  *      icon, the key art, the logo and the sky), as 8-bit palette PNGs (the format the Vita's LiveArea needs).
  *   4. the VPK, a ZIP (stored entries): the payload's program (eboot.bin, param.sfo; title TTHIEFBYO), the pictures,
  *      data/tinythief.apk (the APK as given), the OBB, any supplied start save and the program
- *      cache. The loader reads the APK in place and unpacks the libraries at the first start.
+ *      cache. The loader reads the APK in place and unpacks the libraries at the first start. The hosted payload packs
+ *      no program cache: the program compiles the game's shaders on the Vita at the first start ("Preparing
+ *      shaders...") and saves them for later starts.
  * The game's files are only read; nothing is decrypted or changed. */
 (function (G) {
     'use strict';
