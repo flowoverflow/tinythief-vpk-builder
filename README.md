@@ -45,3 +45,12 @@ Choosing or dropping your XAPK on the website does **not** upload it to a server
 The game files are processed locally in your browser, and the finished VPK is
 downloaded directly to your computer. The builder creates the artwork from your
 own game files unless you choose replacement images.
+
+## Claude AI disclaimer
+
+This project was developed with assistance from **Claude AI**. Claude helped with
+coding and troubleshooting for the PS Vita port and VPK builder. AI-assisted code
+can contain mistakes or bugs.
+
+The builder itself does not use AI to process your XAPK, and your game files are
+not sent to Claude.
