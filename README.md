@@ -7,6 +7,10 @@ turns your own Android game files into a VPK you can install on your Vita.
 OBB game archive, original game libraries, or original artwork is provided. You
 must supply your own **Tiny Thief 1.2.1 XAPK** to create the playable VPK.
 
+On a fresh install, all six chapters unlock as you play through the game.
+If you're updating an existing installation, the Vita keeps your current save
+and its chapter access.
+
 ## What you'll need
 
 - Your own **Tiny Thief 1.2.1 `.xapk` file — NOT an `.apk` file**.
